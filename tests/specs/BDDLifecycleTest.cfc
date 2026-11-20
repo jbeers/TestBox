@@ -6,7 +6,7 @@ component extends="testbox.system.BaseSpec" {
 	/*********************************** LIFE CYCLE Methods ***********************************/
 
 	function beforeAll(){
-		coldbox = 0;
+		variables.coldbox = 0;
 	}
 
 	function afterAll(){
@@ -18,7 +18,7 @@ component extends="testbox.system.BaseSpec" {
 		describe( "A suite", function(){
 			// before each spec in THIS suite group
 			beforeEach( function( currentSpec ){
-				coldbox++;
+				variables.coldbox++;
 				debug( "beforeEach (A Suite) #arguments.currentSpec#" );
 			} );
 
@@ -41,7 +41,7 @@ component extends="testbox.system.BaseSpec" {
 			describe( "A nested suite", function(){
 				// before each spec in THIS suite group
 				beforeEach( function( currentSpec ){
-					coldbox = coldbox * 2;
+					variables.coldbox = coldbox * 2;
 					debug( "beforeEach (A nested suite) #arguments.currentSpec#: coldbox = #coldbox#" );
 				} );
 
@@ -59,7 +59,7 @@ component extends="testbox.system.BaseSpec" {
 				describe( "Another nested suite", function(){
 					// before each spec in THIS suite group
 					beforeEach( function( currentSpec ){
-						coldbox++;
+						variables.coldbox++;
 						debug( "beforeEach (Another nested suite) #arguments.currentSpec#: coldbox = #coldbox#" );
 					} );
 

@@ -27,7 +27,6 @@ component{
 	}
 
 	private boolean function shouldEnableFullNullSupport() {
-		param value = url.keyExists( "FULL_NULL" );
 		var system = createObject( "java", "java.lang.System" );
         var value = system.getEnv( "FULL_NULL" ) ?: false;
         return !!value;

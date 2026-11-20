@@ -1,0 +1,105 @@
+/**
+ * Build an isolated native BoxLang distribution without changing the CFML sources.
+ * Run `box install --production`, then `boxlang build/native-boxlang.bxs`.
+ * shortcut: BoxLang 1.16 transpiler workarounds, remove as upstream fixes land.
+ */
+function main(){
+    var projectRoot = getDirectoryFromPath( getDirectoryFromPath( getCurrentTemplatePath() ).reReplace( "[/\\]$", "" ) )
+    var targetRoot = projectRoot & ".tmp/native-boxlang"
+    if ( !directoryExists( projectRoot & "system/modules/globber" ) ) {
+        throw( message = "Install dependencies first: box install --production" )
+    }
+    if ( directoryExists( targetRoot ) ) {
+        directoryDelete( targetRoot, true )
+    }
+    directoryCreate( targetRoot, true )
+    for ( var folder in [ "system", "tests", "build/vendor" ] ) {
+        directoryCopy( projectRoot & folder, targetRoot & "/" & folder, true )
+    }
+    // Do not carry cached mocks from an earlier CFML or BoxLang run into the build.
+    directoryDelete( targetRoot & "/system/stubs", true )
+    directoryCreate( targetRoot & "/system/stubs" )
+    fileCopy( projectRoot & "box.json", targetRoot & "/box.json" )
+    fileCopy( projectRoot & "run", targetRoot & "/run" )
+
+    var parser = createObject( "java", "ortus.boxlang.compiler.parser.Parser" )
+    var visitorClass = createObject( "java", "ortus.boxlang.compiler.ast.visitor.CFTranspilerVisitor" )
+    var configClass = createObject( "java", "ortus.boxlang.compiler.prettyprint.config.Config" )
+    var sourceTypes = createObject( "java", "ortus.boxlang.compiler.parser.BoxSourceType" )
+    var converted = 0
+    var sourcePaths = directoryList( targetRoot, true, "path" )
+    var convertedNames = {}
+    for ( var sourcePath in sourcePaths ) {
+        if ( listFindNoCase( "cfc,cfm,cfs", listLast( sourcePath, "." ) ) ) {
+            convertedNames[ getFileFromPath( sourcePath ) ] = true
+        }
+    }
+    for ( var sourcePath in sourcePaths ) {
+        var extension = listLast( sourcePath, "." ).lCase()
+        if ( !listFind( "cfc,cfm,cfs", extension ) ) {
+            continue
+        }
+        // Old fixtures include CR-only files, which the pretty printer misreads.
+        var sourceText = fileRead( sourcePath ).replace( char( 13 ) & char( 10 ), char( 10 ), "all" ).replace( char( 13 ), char( 10 ), "all" )
+        // shortcut: cbMockData 4 assumes CGI, remove when its CLI service detection is fixed.
+        if ( sourcePath.endsWith( "/cbMockData/models/MockData.cfc" ) ) {
+            sourceText = sourceText.replace( "if ( cgi.script_name contains", "if ( !server.keyExists( ""cli"" ) && cgi.script_name contains", "all" )
+        }
+        fileWrite( sourcePath, sourceText )
+        var result = parser.parse( createObject( "java", "java.io.File" ).init( sourcePath ), false )
+        if ( !result.isCorrect() ) {
+            throw( message = "Cannot transpile #sourcePath#", detail = result.getIssues().toString() )
+        }
+        // Keep behavioral doc annotations (lifecycle hooks, expectedException, etc.).
+        var rootNode = result.getRoot().accept( visitorClass.init( {} ) )
+        for ( var node in rootNode.getDescendants() ) {
+            var nodeType = node.getClass().getSimpleName()
+            if ( listFind( "BoxClass,BoxFunctionDeclaration,BoxProperty", nodeType ) ) {
+                // BoxLang's transpiler emits an annotation its parser cannot read.
+                node.getAnnotations().removeIf( ( annotation ) => annotation.getKey().getValue().equalsIgnoreCase( "return" ) )
+                for ( var annotation in node.getAnnotations() ) {
+                    annotation.getKey().setValue( annotation.getKey().getValue().replace( ":", ".", "all" ) )
+                }
+            }
+            if ( nodeType == "BoxComponent" && node.getName() != "include" ) {
+                // The pretty printer otherwise retains bare CFML component names.
+                node.setSourceText( "bx:" & node.getName() )
+            }
+            if ( nodeType == "BoxStringLiteral" ) {
+                var literal = node.getValue().replaceNoCase( "mxunit:expectedException", "mxunit.expectedException", "all" )
+                for ( var filename in reMatchNoCase( "[a-z0-9_-]+\.(cfc|cfm|cfs)\b", literal ) ) {
+                    if ( convertedNames.keyExists( filename ) ) {
+                        var nativeExtension = { cfc : "bx", cfm : "bxm", cfs : "bxs" }[ listLast( filename, "." ).lCase() ]
+                        literal = literal.replaceNoCase( filename, filename.reReplace( "\.[^.]+$", "." & nativeExtension ), "all" )
+                    }
+                }
+                if ( literal.contains( "*" ) || ( node.getParent().getClass().getSimpleName() == "BoxStringInterpolation" && reFindNoCase( "^\.(cfc|cfm|cfs)$", literal ) ) ) {
+                    literal = literal.reReplaceNoCase( "\.cfc\b", ".bx", "all" ).reReplaceNoCase( "\.cfm\b", ".bxm", "all" ).reReplaceNoCase( "\.cfs\b", ".bxs", "all" )
+                }
+                node.setValue( literal )
+            }
+        }
+        var config = configClass.loadConfigAutoDetect( projectRoot & ".cfformat.json" )
+        config.setSourceType( extension == "cfm" ? sourceTypes.BOXTEMPLATE : sourceTypes.BOXSCRIPT )
+        var targetExtension = { cfc : "bx", cfm : "bxm", cfs : "bxs" }[ extension ]
+        var targetPath = sourcePath.reReplace( "\.[^.]+$", "." & targetExtension )
+        var nativeSource = rootNode.toString( config )
+        for ( var node in rootNode.getDescendants() ) {
+            if ( node.getClass().getSimpleName() == "BoxBinaryOperation" && node.getOperator().name() == "NotContains" ) {
+                // The printer emits `not contains`, which the native parser rejects.
+                nativeSource = nativeSource.replace( node.toString( config ).trim(), "!findNoCase( " & node.getRight().toString( config ).trim() & ", " & node.getLeft().toString( config ).trim() & " )", "all" )
+            }
+        }
+        // A line comment between `else` and `if` makes native BoxLang parse `else` as a variable.
+        nativeSource = nativeSource.reReplace( "(?m)\belse[ \t]+//([^\r\n]*)\r?\n[ \t]*if\b", "/*\1 */ else if", "all" )
+        fileWrite( targetPath, nativeSource )
+        var nativeResult = parser.parse( createObject( "java", "java.io.File" ).init( targetPath ), false )
+        if ( !nativeResult.isCorrect() ) {
+            throw( message = "Invalid generated BoxLang: #targetPath#: #nativeResult.getIssues().toString()#" )
+        }
+        fileDelete( sourcePath )
+        converted++
+    }
+    println( "Converted #converted# files into #targetRoot#" )
+}
+main()

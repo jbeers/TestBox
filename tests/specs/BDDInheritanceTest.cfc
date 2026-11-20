@@ -29,13 +29,13 @@ component extends="testbox.system.BaseSpec" {
 		describe( "A spec", function(){
 			// before each spec in THIS suite group
 			beforeEach( function(){
-				coldbox = 0;
-				coldbox++;
+				variables.coldbox = 0;
+				variables.coldbox++;
 			} );
 
 			// after each spec in THIS suite group
 			afterEach( function(){
-				foo = 0;
+				variables.foo = 0;
 			} );
 
 			/**
@@ -53,7 +53,7 @@ component extends="testbox.system.BaseSpec" {
 
 			// more than 1 expectation
 			it( "can have more than one expectation test", function(){
-				coldbox = coldbox * 8;
+				variables.coldbox = coldbox * 8;
 				// type checks
 				expect( coldbox ).toBeTypeOf( "numeric" );
 				// dynamic type methods
@@ -74,7 +74,7 @@ component extends="testbox.system.BaseSpec" {
 
 			// negations
 			it( "can have negative expectations", function(){
-				coldbox = coldbox * 8;
+				variables.coldbox = coldbox * 8;
 				// type checks
 				expect( coldbox ).notToBeTypeOf( "usdate" );
 				// dynamic type methods

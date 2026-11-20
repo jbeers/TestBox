@@ -20,7 +20,7 @@ component extends="testbox.system.BaseSpec" {
 				for ( var thisFile in manifest.sha256 ) {
 					var actual = lCase(
 						hash(
-							fileRead( variables.vendorDir & "/" & thisFile, "utf-8" ),
+							fileReadBinary( variables.vendorDir & "/" & thisFile ),
 							"SHA-256",
 							"utf-8"
 						)

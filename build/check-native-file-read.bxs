@@ -1,0 +1,10 @@
+/** Standalone check for the runtime file-read issue blocking the asset checksum spec. */
+assetPath = getDirectoryFromPath( getCurrentTemplatePath() ) & "../system/reports/assets/vendor/bootstrap.min.css"
+expectedSize = getFileInfo( assetPath ).size
+contents = fileReadBinary( assetPath )
+actualSize = len( isBinary( contents ) ? contents : contents.getBytes( "UTF-8" ) )
+if ( !isBinary( contents ) || actualSize != expectedSize ) {
+    resultType = isBinary( contents ) ? "binary" : "text"
+    throw( message = "fileReadBinary returned #resultType# (#actualSize# UTF-8 bytes) for a #expectedSize#-byte file" )
+}
+println( "fileReadBinary preserves all #expectedSize# bytes" )

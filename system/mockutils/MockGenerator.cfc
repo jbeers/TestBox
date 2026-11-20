@@ -80,10 +80,11 @@ component accessors="true" {
 			safeMethodName = "$reserved_#arguments.method#";
 		}
 
+		var nativeBoxLang = server.keyExists( "boxlang" )
 		// Create Method Signature
 		// cfformat-ignore-start
 		udfOut.append(
-			"<c" & "fsc" & "ript>
+			( nativeBoxLang ? "<bx:script>" : "<c" & "fsc" & "ript>" ) & "
 			variables[ ""#safeMethodName#"" ] = variables[ ""@@tmpMethodName@@"" ];
 			this[ ""#safeMethodName#"" ]           = variables[ ""@@tmpMethodName@@"" ];
 
@@ -249,12 +250,12 @@ if (structKeyExists( this._mockCallbacks, resultsKey) ) {
 			);
 		}
 		udfOut.append( "}#variables.lb#" );
-		udfOut.append( "</c" & "fsc" & "ript>" );
+		udfOut.append( nativeBoxLang ? "</bx:script>" : "</c" & "fsc" & "ript>" );
 		// cfformat-ignore-end
 
 		// Write it out
 		stubCode = trim( udfOUt.toString() );
-		tmpFile  = hash( stubCode ) & ".cfm";
+		tmpFile  = hash( stubCode ) & ( nativeBoxLang ? ".bxm" : ".cfm" );
 
 		// This is necessary for methods named after CF keywords like "contains"
 		var tmpMethodName = "tmp_#arguments.method#_" & hash( stubCode );
@@ -338,8 +339,11 @@ if (structKeyExists( this._mockCallbacks, resultsKey) ) {
 		var local     = {};
 		var stubCode  = "";
 
-		// Create CFC Signature
-		udfOut.append( "<c" & "fcomponent output=""false"" hint=""A MockBox awesome Component""" );
+		var nativeBoxLang = server.keyExists( "boxlang" )
+		// Create class signature in the engine's source language.
+		udfOut.append(
+			nativeBoxLang ? "@output( false )#variables.lb#class" : "<c" & "fcomponent output=""false"" hint=""A MockBox awesome Component"""
+		)
 
 		// extends
 		if ( len( trim( arguments.extends ) ) ) {
@@ -351,8 +355,8 @@ if (structKeyExists( this._mockCallbacks, resultsKey) ) {
 			udfOut.append( " implements=""#arguments.implements#""" );
 		}
 
-		// close tag
-		udfOut.append( ">#variables.lb#" );
+		// close signature
+		udfOut.append( ( nativeBoxLang ? " {" : ">" ) & variables.lb );
 
 		// iterate over implementations
 		for ( local.x = 1; local.x lte listLen( arguments.implements ); local.x++ ) {
@@ -364,11 +368,11 @@ if (structKeyExists( this._mockCallbacks, resultsKey) ) {
 		}
 
 		// close it
-		udfOut.append( "</c" & "fcomponent>" );
+		udfOut.append( nativeBoxLang ? "}" : "</c" & "fcomponent>" );
 
 		// Write it out
 		stubCode = udfOUt.toString();
-		tmpFile  = hash( stubCode ) & ".cfc";
+		tmpFile  = hash( stubCode ) & ( nativeBoxLang ? ".bx" : ".cfc" );
 		if ( !fileExists( genPath & tmpFile ) ) {
 			writeStub( genPath & tmpFile, stubCode );
 		}
@@ -413,6 +417,22 @@ if (structKeyExists( this._mockCallbacks, resultsKey) ) {
 		}
 
 		for ( var thisMethod in aFunctions ) {
+			if ( server.keyExists( "boxlang" ) ) {
+				udfOut.append( "public #thisMethod.returntype# function #thisMethod.name#(" )
+				var parameters = []
+				for ( var thisParam in thisMethod.parameters ) {
+					var declaration = ( thisParam.required ? "required " : "" ) & thisParam.type & " " & thisParam.name
+					if (
+						structKeyExists( thisParam, "default" ) && !isNull( thisParam.default ) &&
+						thisParam.default != "[runtime expression]"
+					) {
+						declaration &= " = " & outputQuotedValue( thisParam.default )
+					}
+					arrayAppend( parameters, declaration )
+				}
+				udfOut.append( arrayToList( parameters, ", " ) & ") {}#variables.lb#" )
+				continue;
+			}
 			// start function tag
 			udfOut.append( "<c" & "ffunction" );
 

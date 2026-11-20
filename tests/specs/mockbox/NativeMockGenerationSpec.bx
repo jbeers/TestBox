@@ -1,0 +1,28 @@
+class extends="testbox.system.BaseSpec" {
+    function run(){
+        describe( "Native BoxLang mock generation", () => {
+            it( "writes executable native class and method sources", () => {
+                var generationPath = "/tests/resources/nativeStubs" & replace( createUUID(), "-", "", "all" ) & "/"
+                var generationDirectory = expandPath( generationPath )
+                directoryCreate( generationDirectory )
+                try {
+                    var factory = new testbox.system.MockBox( generationPath )
+                    var stub = factory.createStub( implements = "tests.resources.MyInterface" )
+                    stub.$( "testThis" ).$results( "native result" )
+                    expect( stub.testThis( name = "BoxLang", age = 1 ) ).toBe( "native result" )
+                    expect( isInstanceOf( stub, "tests.resources.MyInterface" ) ).toBeTrue()
+
+                    var classes = directoryList( generationDirectory, false, "path", "*.bx" )
+                    var methods = directoryList( generationDirectory, false, "path", "*.bxm" )
+                    expect( classes ).toHaveLength( 1 )
+                    expect( methods ).toHaveLength( 1 )
+                    expect( fileRead( classes.first() ) ).toInclude( "class" ).notToInclude( "<cf" )
+                    expect( fileRead( methods.first() ) ).toInclude( "<bx:script>" ).notToInclude( "<cf" )
+                    expect( directoryList( generationDirectory, false, "path", "*.cfc|*.cfm" ) ).toBeEmpty()
+                } finally {
+                    directoryDelete( generationDirectory, true )
+                }
+            } )
+        } )
+    }
+}

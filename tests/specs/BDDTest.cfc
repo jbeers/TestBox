@@ -33,14 +33,14 @@ component extends="testbox.system.BaseSpec" {
 			body   = function(){
 				// before each spec in THIS suite group
 				beforeEach( function(){
-					coldbox = 0;
-					coldbox++;
+					variables.coldbox = 0;
+					variables.coldbox++;
 					debug( "beforeEach suite: coldbox = #coldbox#" );
 				} );
 
 				// after each spec in THIS suite group
 				afterEach( function(){
-					foo = 0;
+					variables.foo = 0;
 				} );
 
 				describe( "A nice /suite/with/slashes", function(){
@@ -109,7 +109,7 @@ component extends="testbox.system.BaseSpec" {
 
 				// more than 1 expectation
 				it( "can have more than one expectation test", function(){
-					coldbox = coldbox * 8;
+					variables.coldbox = coldbox * 8;
 					// type checks
 					expect( coldbox ).toBeTypeOf( "numeric" ).toBeNumeric();
 					// delta ranges
@@ -159,7 +159,7 @@ component extends="testbox.system.BaseSpec" {
 
 				// negations
 				it( "can have negative expectations", function(){
-					coldbox = coldbox * 8;
+					variables.coldbox = coldbox * 8;
 					// type checks
 					expect( coldbox ).notToBeTypeOf( "usdate" );
 					// dynamic type methods
@@ -285,7 +285,7 @@ component extends="testbox.system.BaseSpec" {
 						else return ( expectation.actual eq true );
 					}
 				} );
-				foo = false;
+				variables.foo = false;
 			} );
 
 			it( "are cool and foo should be really false", function(){
@@ -301,7 +301,7 @@ component extends="testbox.system.BaseSpec" {
 				beforeEach( function(){
 					// add custom matcher via CFC
 					addMatchers( new testbox.tests.resources.CustomMatcher() );
-					foofoo = false;
+					variables.foofoo = false;
 				} );
 
 				it( "should be awesome", function(){
@@ -788,7 +788,7 @@ component extends="testbox.system.BaseSpec" {
 			// before each spec in THIS suite group
 			beforeEach( function(){
 				// using request until Lucee fixes their closure bugs
-				request.calc = calc = new testbox.tests.resources.Calculator();
+				request.calc = variables.calc = new testbox.tests.resources.Calculator();
 			} );
 
 			// after each spec in THIS suite group

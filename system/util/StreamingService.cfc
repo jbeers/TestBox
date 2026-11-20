@@ -59,6 +59,10 @@ component accessors="true" {
 	 * @return StreamingService
 	 */
 	function initializeStream(){
+		// CLI streaming has stdout, not an HTTP response to configure.
+		if ( server.keyExists( "cli" ) ) {
+			return this;
+		}
 		// Set SSE-specific headers to establish the correct content type and disable buffering
 		cfcontent( type = "text/event-stream; charset=UTF-8", reset = "true" );
 		cfheader( name = "Cache-Control", value = "no-cache, no-transform" );

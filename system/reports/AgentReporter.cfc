@@ -346,10 +346,10 @@ component extends="BaseReporter" {
 	 */
 	private boolean function isInternalFrame( required string template ){
 		var normalized = replace( arguments.template, "\", "/", "all" );
-		return findNoCase( "/testbox/system/", normalized ) > 0 || findNoCase(
-			"/coldbox/system/testing/",
-			normalized
-		) > 0;
+		var frameworkPath = replace( expandPath( "/testbox/system/" ), "\", "/", "all" )
+		return findNoCase( frameworkPath, normalized ) == 1 ||
+			findNoCase( "/testbox/system/", normalized ) > 0 ||
+			findNoCase( "/coldbox/system/testing/", normalized ) > 0
 	}
 
 	/**
